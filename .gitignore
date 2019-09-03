@@ -6,3 +6,6 @@ backup/*
 *.log
 *.swp
 result/*
+out/
+*.txt
+*.out

@@ -194,14 +194,34 @@ def gen_alpha_pred_loss(alpha, pred_alpha, trimap):
 
 
 def ldata(loss):
-    #return loss.data
-    return loss.data[0]
+    return loss.item()
+
+def save_prediction(img, trimap, pred_mattes, result_dir, result_name, is_test=False):
+    
+    if not is_test:
+        origin_pred_mattes = pred_mattes.cpu().detach().numpy()[0, 0, :, :]
+        trimap_cpu = trimap.cpu()
+        origin_pred_mattes[trimap_cpu == 255] = 1.
+        origin_pred_mattes[trimap_cpu == 0  ] = 0.
+        origin_pred_mattes = (origin_pred_mattes * 255).astype(np.uint8)
+        img = img.permute(0,2,3,1)
+        img = img.cpu().numpy().astype(np.uint8)[0,:,:,:]
+    else:
+        trimap_cpu = trimap
+    
+    img2 = np.stack((origin_pred_mattes,)*3, axis=-1).astype(np.uint8)
+    b_channel, g_channel, r_channel = cv2.split(img)
+    img_BGRA = cv2.merge((b_channel, g_channel, r_channel, origin_pred_mattes))
+    cv2.imwrite(os.path.join(result_dir, f'{result_name}_alpha.png'), img_BGRA)
+    dst = cv2.addWeighted(img, 0.5, img2, 0.5, 0)
+    cv2.imwrite(os.path.join(result_dir, f'{result_name}_full.png'), dst)
+    
 
 
 def train(args, model, optimizer, train_loader, epoch, logger):
     model.train()
     t0 = time.time()
-    #fout = open("train_loss.txt",'w')
+    
     for iteration, batch in enumerate(train_loader, 1):
         torch.cuda.empty_cache()
         img = Variable(batch[0])
@@ -247,6 +267,7 @@ def train(args, model, optimizer, train_loader, epoch, logger):
         
         loss.backward()
         optimizer.step()
+        
 
         if iteration % args.printFreq ==  0:
             t1 = time.time()
@@ -260,6 +281,7 @@ def train(args, model, optimizer, train_loader, epoch, logger):
             elif args.stage == 1:
                 # stage 1
                 logger.info("Stage1-Epoch[{}/{}]({}/{}) Lr:{:.8f} Loss:{:.5f} Alpha:{:.5f} Comp:{:.5f} Speed:{:.5f}s/iter {}".format(epoch, args.nEpochs, iteration, num_iter, optimizer.param_groups[0]['lr'], ldata(loss), ldata(alpha_loss), ldata(comp_loss), speed, exp_time))
+                save_prediction(img, trimap, pred_mattes, 'out/train', f"{epoch}_{iteration}_{img_info[0][0].split('/')[-1].split('.')[0]}")
             elif args.stage == 2:
                 # stage 2
                 logger.info("Stage2-Epoch[{}/{}]({}/{}) Lr:{:.8f} Loss:{:.5f} Speed:{:.5f}s/iter {}".format(epoch, args.nEpochs, iteration, num_iter, optimizer.param_groups[0]['lr'], ldata(loss), speed, exp_time))
@@ -271,7 +293,7 @@ def train(args, model, optimizer, train_loader, epoch, logger):
     #fout.close()
 
 
-def test(args, model, logger):
+def test(args, model, logger, epoch):
     model.eval()
     sample_set = []
     img_ids = os.listdir(args.testImgDir)
@@ -331,6 +353,7 @@ def test(args, model, logger):
         origin_pred_mattes = (origin_pred_mattes * 255).astype(np.uint8)
         if not os.path.exists(args.testResDir):
             os.makedirs(args.testResDir)
+        save_prediction(img, trimap, origin_pred_mattes, 'out/test', f"test_{epoch}_{img_info[0].split('.')[0]}", is_test=True)
         cv2.imwrite(os.path.join(args.testResDir, img_info[0]), origin_pred_mattes)
 
     logger.info("Avg-Cost: {} s/image".format((time.time() - t0) / cnt))
@@ -384,7 +407,7 @@ def main():
     for epoch in range(start_epoch, args.nEpochs + 1):
         train(args, model, optimizer, train_loader, epoch, logger)
         if epoch > 0 and args.testFreq > 0 and epoch % args.testFreq == 0:
-            cur_sad = test(args, model, logger)
+            cur_sad = test(args, model, logger, epoch)
             if cur_sad < best_sad:
                 best_sad = cur_sad
                 checkpoint(epoch, args.saveDir, model, best_sad, logger, True)

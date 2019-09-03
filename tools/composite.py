@@ -6,15 +6,25 @@ import math
 import time
 import shutil
 
-root_dir = "/home/liuliang/Downloads/Combined_Dataset"
-test_bg_dir = '/home/liuliang/Desktop/dataset/matting/VOCdevkit/VOC2012/JPEGImages'
-train_bg_dir = '/home/liuliang/Desktop/dataset/matting/mscoco/train2017'
+root_dir = "/home/kunato/dataset/Matting_Dataset/images"
+test_bg_dir = '/home/kunato/dataset/coco/train2017'
+train_bg_dir = '/home/kunato/dataset/coco/train2017'
 
 def my_composite(fg_names, bg_names, fg_dir, alpha_dir, bg_dir, num_bg, comp_dir):
+    print(fg_names)
     fg_ids = open(fg_names).readlines()
     bg_ids = open(bg_names).readlines()
-    
+
+    fg_ids = list(map(lambda x: x.strip().split('/')[-1], fg_ids))
+    bg_ids = list(map(lambda x: x.strip().split('/')[-1], bg_ids))
+
+    # print(fg_ids)
+    # print(bg_ids)
+
     fg_cnt = len(fg_ids)
+
+    bg_ids = bg_ids[0: fg_cnt*num_bg]
+
     bg_cnt = len(bg_ids)
     print(fg_cnt, bg_cnt)
     assert(fg_cnt * num_bg == bg_cnt)
@@ -84,21 +94,21 @@ def main():
     test_comp_dir = os.path.join(root_dir, "Test_set/comp")
 
     train_num_bg = 100
-    train_fg_names = os.path.join(root_dir, "Training_set/training_fg_names.txt")
-    train_bg_names_coco2014 = os.path.join(root_dir, "Training_set/training_bg_names.txt")
-    train_bg_names_coco2017 = os.path.join(root_dir, "Training_set/training_bg_names_coco2017.txt")
-    train_fg_dir = os.path.join(root_dir, "Training_set/all/fg")
-    train_alpha_dir = os.path.join(root_dir, "Training_set/all/alpha")
+    train_fg_names = os.path.join(root_dir, "fg_file_list.txt")
+    # train_bg_names_coco2014 = os.path.join(root_dir, "Training_set/training_bg_names.txt")
+    train_bg_names_coco2017 = os.path.join(root_dir, "bg_file_list.txt")
+    train_fg_dir = os.path.join(root_dir, "Training_set/fg")
+    train_alpha_dir = os.path.join(root_dir, "Training_set/alpha")
     train_comp_dir = os.path.join(root_dir, "Training_set/comp")
 
     # change the bg names formate if is coco 2017 
-    fin =  open(train_bg_names_coco2014, 'r')
-    fout =  open(train_bg_names_coco2017, 'w')
-    lls = fin.readlines()
-    for l in lls:
-        fout.write(l[15:])
-    fin.close()
-    fout.close()
+    # fin =  open(train_bg_names_coco2014, 'r')
+    # fout =  open(train_bg_names_coco2017, 'r')
+    # lls = fin.readlines()
+    # for l in lls:
+    #     fout.write(l[15:])
+    # fin.close()
+    # fout.close()
 
     if not os.path.exists(test_comp_dir):
         os.makedirs(test_comp_dir + '/image')
@@ -120,15 +130,15 @@ def main():
         os.makedirs(train_fg_dir)
 
     # copy test trimaps 
-    copy_dir2dir(test_trimap_dir, test_comp_dir + '/trimap')
+    # copy_dir2dir(test_trimap_dir, test_comp_dir + '/trimap')
     # copy train images together
-    copy_dir2dir(os.path.join(root_dir, "Training_set/Adobe-licensed images/alpha"), train_alpha_dir)
-    copy_dir2dir(os.path.join(root_dir, "Training_set/Adobe-licensed images/fg"), train_fg_dir)
-    copy_dir2dir(os.path.join(root_dir, "Training_set/Other/alpha"), train_alpha_dir)
-    copy_dir2dir(os.path.join(root_dir, "Training_set/Other/fg"), train_fg_dir)
+    # copy_dir2dir(os.path.join(root_dir, "Training_set/Adobe-licensed images/alpha"), train_alpha_dir)
+    # copy_dir2dir(os.path.join(root_dir, "Training_set/Adobe-licensed images/fg"), train_fg_dir)
+    # copy_dir2dir(os.path.join(root_dir, "Training_set/Other/alpha"), train_alpha_dir)
+    # copy_dir2dir(os.path.join(root_dir, "Training_set/Other/fg"), train_fg_dir)
 
     # composite test image
-    my_composite(test_fg_names, test_bg_names, test_fg_dir, test_alpha_dir, test_bg_dir, test_num_bg, test_comp_dir)
+    # my_composite(test_fg_names, test_bg_names, test_fg_dir, test_alpha_dir, test_bg_dir, test_num_bg, test_comp_dir)
     # composite train image
     my_composite(train_fg_names, train_bg_names_coco2017, train_fg_dir, train_alpha_dir, train_bg_dir, train_num_bg, train_comp_dir)
 
